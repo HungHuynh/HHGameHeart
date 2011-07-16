@@ -1,0 +1,69 @@
+
+////////////////////////////////////////////////////////////////////////////
+Các công việc tiếp theo :
+- Chỉnh lại hiện bảng điểm trên textbox chat.
+- Viết các hàm playgame() cho BOT cách chơi.
+- tạo auto playgame() cho client để test debug.
+- BOT đã xoay vòng được, cần test lại 4 máy chơi (4 máy chơi có thể lỗi send 2 lần card rotate).
+////////////////////////////////////////////////////////////////////////////
+
+Mô tả cách hoạt động của game và các MESSAGE_TYPES lúc chơi :
+
+Bước 1 :khởi động kết nối :
+BEGIN(Server -> Client) -> NAME(Client -> Server) -> ID(Server -> Client) -> CHAT (Client <-> Server) 
+
+Bước 2 : Bắt đầu chơi game :
+CHAT()... -> GAME(Server-> Client) -> GAME(Client -> Server) -> ...ROTATE... -> PLAY(Server -> Client) -> 
+
+Bước 3 : Lượt Client chọn bài và client đánh cuối báo NEXT để tính điểm lượt đó:
+-> PICK (Client -> Server -> other Client) -> (ID of Client) -> PICK (Client -> Server -> other Client)
+-> NEXT (Client - > Server & other Client) (client và server tính điểm lượt này khi nhận được message NEXT và xóa 4 quân bài trên bàn)
+
+Bước 4 : Hết một SET Các client game tự tính điểm và hiện các thông tin trên chương trình :
+-> SET(All Client -> Server) -> MARK(Server -> Client) -> quay lại bước 2.
+
+Bước Cuối : END(Server -> All Client) ... đến khi nào có client game đạt được hơn 100 điểm thì 
+game kết thúc với phần thắng thuộc về game thấp điểm nhất.
+
+Các dạng message mẫu : 
+PICK#ID#nameCard#numCard#charType
+NEXT#ID#nameCard
+
+
+1> Bắt đầu game khi đủ 4 người chơi  :
+    - khi người chơi nào kết nối vào thì hiện name thi : 
+        + Nhận từ Server game các thông tin : name, ID của client game khác.
+        + hiện giao diện các bộ bài úp lên cho mỗi người chơi đã connect vào game.
+    - mỗi giao diện Server và Client game đều có hình 4 bên sấp để bắt đầu chơi.
+    - Nút Play game hiện lên để bắt đầu và phía server game có nhiệm vụ phát bài đầu tiên : 
+        + chạy mode Server tạo ra các quân bài cho 4 player và lấy bài của player 1.
+        + phát 3 bộ bài còn lại cho 3 client game theo ID mà lúc đầu Server đã cấp.
+        + Client game nhận message : CARD và hiện các quân bài đó lên giao diện và xóa bài up.
+    
+2> Quá trình xử lý khi chơi game : 
+    - Nước đánh bài :
+        + Khi người chơi chọn bài và đánh, Client gửi Server message PICK : ID & CARD.
+        + Server nhận mesage PICK : đưa nước đánh này vào Player ID và tính điểm cho lượt đánh nếu đánh đủ 4 quân.
+        + Server kiểm tra nước bài đó có hợp lệ không để send message : OK hay HELP lại cho client đó.
+        + Nếu là nước bài hợp lệ thì gửi cho 2 người chơi còn lại và tính điểm nếu không phải đợi lại lượt đánh đó.
+        + 
+        
+    - Nước nhận đánh :
+        + Nhận nước đánh của client khác từ Server game gửi lại với message PICK.
+        + Nhận bài đưa vào class view để view hiện nước đánh bài của người chơi (xóa bài view và đánh bài ra bàn).
+        + 
+
++ Tính điểm cho game : 
+- Ăn quân cơ được cộng một điểm và ăn quân đầm bích được cộng 13 điểm.
+- Ăn trắng bài là khi ăn được 13 quân cơ và đầm bích thì ta được 0 điểm và 3 client game còn lại mỗi người nhận 26 điểm.
+- Sau 10 mà client nào thấp điểm nhất thì thắng cuộc.
+cách thực hiện :
+- chọn các quân bài trùng với CardTypeOnboard và đem so sánh giữa các client game nào có quân nhỏ nhất sẽ được cộng điểm và lấy bài (cơ và đầm bích)
+- lọc ra nếu có cơ và đầm bích thì gửi về cho client đó lưu lại để load lên giao diện khi công bố điểm kết thúc SET.
+- xóa 4 quân bài đã đánh trên bàn và hiện điểm của Client thắng trong lượt đó. còn khi kết thúc một SET thì hiện điểm các client và bài mà mỗi client 
+ăn được sau lượt đó (hết một SET mới làm vậy). 
+
+4> Class Gamer : được viết lại từ class Player cho mode online, còn class Player dành cho mode offline chơi với BOT. 
+Class Gamer có 2 dạng mode nhỏ để hoạt động là mode game và mode view, mode game dùng cho server game để phát bài, tính điểm ...
+còn dùng cho client là thể hiện bài cho người chơi đó. Còn mode view là dùng cho client để hiện các quân bài up xuống. Do vậy mỗi 
+bên server hay client đều có 4 đối tượng class Gamer và có tỉ lệ mode của Gamer là : 1 game : 3 view.
